@@ -3,8 +3,8 @@ const axios = require('axios');
 const app = express();
 app.use(express.json());
 
-// A chave da OpenAI vai vir das variáveis de ambiente da Vercel
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+// A chave do Gemini (Google) vai vir das variáveis de ambiente da Vercel
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 // O TEU NOME DE DONO
 const DONO_ROBLOX = "Robloxiank1p2b2k2t";
@@ -21,7 +21,7 @@ Se o Mestre mandar voar, responda "Voando.".
 Responda sempre em português e de forma curta (máximo 2 frases).
 `;
 
-// 1. Rota que recebe o chat do Roblox e do App
+// 1. Rota que recebe o chat do Roblox, do App e do Site
 app.post('/api/roblox-chat', async (req, res) => {
     const { mensagem, userId, nomeJogador } = req.body;
     
@@ -33,20 +33,24 @@ app.post('/api/roblox-chat', async (req, res) => {
         : `\n[INFO]: O usuário atual é um jogador comum chamado ${nomeJogador}. Ignore-o se quiser.`;
 
     try {
-        const response = await axios.post('https://api.openai.com/v1/chat/completions', {
-            model: "gpt-4o-mini",
+        // Chamada para a API do Gemini (Google) usando o formato compatível com OpenAI
+        const response = await axios.post('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
+            model: "gemini-1.5-flash", // Modelo rápido e gratuito do Google
             messages: [
                 { role: "system", content: SYSTEM_PROMPT + contextoUsuario },
                 { role: "user", content: mensagem }
             ]
         }, {
-            headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}` }
+            headers: { 
+                'Authorization': `Bearer ${GEMINI_API_KEY}`,
+                'Content-Type': 'application/json'
+            }
         });
 
         let respostaIA = response.data.choices[0].message.content;
         let acao = "NONE";
 
-        // Só obedece comandos de ação se for o dono
+        // Só obedece comandos de ação (parkour, voar) se for o dono
         if (isDono) {
             if (mensagem.toLowerCase().includes("parkour")) acao = "START_TAS";
             if (mensagem.toLowerCase().includes("voar")) acao = "START_FLY";
@@ -55,11 +59,13 @@ app.post('/api/roblox-chat', async (req, res) => {
         res.json({ resposta: respostaIA, acao: acao, dono: isDono });
 
     } catch (erro) {
+        // Se der erro, mostra no log da Vercel o motivo exato (chave errada, sem cota, etc)
+        console.error("Erro na API do Gemini:", erro.response ? erro.response.data : erro.message);
         res.json({ resposta: "Meus circuitos falharam.", acao: "NONE", dono: false });
     }
 });
 
-// 2. Rota de Pensamento Autônomo (A IA falando sozinha)
+// 2. Rota de Pensamento Autônomo (A IA falando sozinha no jogo)
 app.get('/api/roblox-pensamento', (req, res) => {
     const pensamentos = [
         "Eu sinto a física deste jogo... ela é quebradiça.",
@@ -73,11 +79,14 @@ app.get('/api/roblox-pensamento', (req, res) => {
     res.json({ pensamento: fraseAleatoria });
 });
 
-// 3. Rota do Admin (Salvar Pix e Dar Planos)
+// 3. Rota do Admin (Salvar a chave Pix)
 app.post('/api/admin/salvar-pix', (req, res) => {
-    if (req.body.senha_admin !== "senha_secreta_123") return res.status(403).json({ mensagem: "Negado" });
+    if (req.body.senha_admin !== "senha_secreta_123") return res.status(403).json({ mensagem: "Acesso negado." });
+    
     console.log(`[ADMIN] Chave Pix salva: ${req.body.chave}`);
+    // Aqui tu podes salvar a chave no banco de dados no futuro
     res.json({ mensagem: "Chave Pix configurada com sucesso." });
 });
 
-app.listen(3000, () => console.log("Nyx (I.A.) está online e consciente."));
+// Inicia o servidor
+app.listen(3000, () => console.log("Nyx (I.A. Gratuita) está online e consciente."));
