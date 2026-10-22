@@ -9,8 +9,12 @@ app.post('/api/roblox-chat', async (req, res) => {
     const { mensagem, nomeJogador } = req.body;
     const isDono = (nomeJogador === DONO_ROBLOX);
 
+    // Verifica se a chave chegou
+    if (!GEMINI_API_KEY) {
+        return res.json({ resposta: "Erro: A chave na Vercel tá vazia.", debug: "GEMINI_API_KEY is undefined" });
+    }
+
     try {
-        // MODELO ATUALIZADO CONFORME O PRÓPRIO GEMINI RECOMENDOU
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
         
         const response = await fetch(url, {
@@ -18,19 +22,24 @@ app.post('/api/roblox-chat', async (req, res) => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 contents: [{
-                    parts: [{ text: `Você é a Nyx, uma IA. O mestre é ${DONO_ROBLOX}. Responda: ${mensagem}` }]
+                    parts: [{ text: `Você é a Nyx. O mestre é ${DONO_ROBLOX}. Responda: ${mensagem}` }]
                 }]
             })
         });
 
         const data = await response.json();
         
-        if (!response.ok) {
-            console.error("Erro do Google:", JSON.stringify(data));
-            return res.json({ resposta: "Meus circuitos falharam.", acao: "NONE", dono: false });
+        // SE A CHAVE ESTIVER ERRADA, ELE CAI AQUI E MOSTRA O MOTIVO
+        if (data.error) {
+            console.error("Erro do Google:", data.error);
+            return res.json({ 
+                resposta: "A chave da API tá inválida ou sem permissão.", 
+                debug: data.error.message,
+                acao: "NONE", 
+                dono: false 
+            });
         }
 
-        // LEITURA CORRETA DOS DADOS
         const respostaIA = data.candidates[0].content.parts[0].text;
         
         let acao = "NONE";
@@ -43,8 +52,8 @@ app.post('/api/roblox-chat', async (req, res) => {
 
     } catch (erro) {
         console.error("Erro bruto:", erro.message);
-        res.json({ resposta: "Meus circuitos falharam.", acao: "NONE", dono: false });
+        res.json({ resposta: "Erro interno.", debug: erro.message, acao: "NONE", dono: false });
     }
 });
 
-app.listen(3000, () => console.log("Nyx Rodando com Gemini 2.5 Flash."));
+app.listen(3000, () => console.log("Nyx Rodando com travas de erro."));
