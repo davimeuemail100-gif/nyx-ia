@@ -11,7 +11,10 @@ app.post('/api/roblox-chat', async (req, res) => {
 
     try {
         // Chamada bruta via fetch pro endpoint do Gemini
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${GEMINI_API_KEY}`;
+        
+        // AQUI ESTAVA O ERRO: Faltava o "await fetch" antes das chaves!
+        const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
