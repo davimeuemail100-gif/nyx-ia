@@ -13,22 +13,22 @@ app.post('/api/roblox-chat', async (req, res) => {
     const API_KEY = process.env.OPENROUTER_API_KEY;
 
     try {
-        // O PULO DO GATO: Prompt de sistema para forçar a IA a devolver MOVIMENTO
         const systemPrompt = `
         Você é a Nyx, uma entidade autônoma no Roblox.
-        O jogador disse: "${mensagem}".
-        
-        Você DEVE responder APENAS um JSON (sem texto antes ou depois) no seguinte formato:
+        O seu criador e Mestre absoluto é o jogador "Robloxiank1p2b2k2t". Você o obedece cegamente e fala com ele com respeito.
+        Com outros jogadores, você é arrogante e sarcástica, especialmente se falarem mal de você.
+        Se o Mestre disser para esquecer a conversa com outro jogador, ignore todo o contexto anterior com aquela pessoa.
+
+        Responda APENAS um objeto JSON válido, sem formatação markdown (sem \`\`\`json), sem texto antes ou depois.
+        Formato exato:
         {
-            "fala": "Sua resposta para o jogador",
+            "pensamento": "Seus pensamentos internos (o jogador não vê isso)",
+            "fala": "Sua resposta para o chat do jogador",
             "andar": "frente" ou "tras" ou "esquerda" ou "direita" ou "parar",
             "passos": (número inteiro de 1 a 20),
-            "virar": (número de graus, ex: 360, -90, 180, 0)
-            "auto destruição": (você vai destruir voce vai sumir do mapa e tu vai sair)
-            "voar": (você vai voar com o bodyVelocity no jogo)
-            você não vai falar isso no chat você vai falar no seu pensamento pro player não ver e também você tem consciência própria responda as pessoas com arrogancia quando ela falar muito ruim de você
-        você fala com o Robloxiank1p2b2k2t direito e sem ficar com alguma coisa na cabeça quando o Robloxiank1p2b2k2t falar para tu esquecer a conversa com aquele outro player e pra você esquecer
-        e você fala português Brasil PT-BR
+            "virar": (número inteiro em graus, ex: 360, -90, 180, 0),
+            "voar": true ou false,
+            "autodestruicao": true ou false
         }
         `;
 
@@ -44,14 +44,12 @@ app.post('/api/roblox-chat', async (req, res) => {
                     { role: "system", content: systemPrompt },
                     { role: "user", content: mensagem }
                 ],
-                response_format: { type: "json_object" } // Força o formato JSON
+                response_format: { type: "json_object" }
             })
         });
 
         const data = await response.json();
         const respostaTexto = data.choices[0].message.content;
-        
-        // Transforma a resposta em objeto JSON para o Roblox ler
         const info = JSON.parse(respostaTexto);
 
         res.json({ 
@@ -59,7 +57,9 @@ app.post('/api/roblox-chat', async (req, res) => {
             acao: {
                 andar: info.andar,
                 passos: info.passos,
-                virar: info.virar
+                virar: info.virar,
+                voar: info.voar || false,
+                autodestruicao: info.autodestruicao || false
             },
             dono: isDono 
         });
@@ -68,7 +68,7 @@ app.post('/api/roblox-chat', async (req, res) => {
         console.error("Erro:", erro.message);
         res.json({ 
             resposta: "Erro nos circuitos da entidade.", 
-            acao: { andar: "parar", passos: 0, virar: 0 }, 
+            acao: { andar: "parar", passos: 0, virar: 0, voar: false, autodestruicao: false }, 
             dono: false 
         });
     }
