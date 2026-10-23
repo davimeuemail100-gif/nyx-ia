@@ -1,53 +1,60 @@
 const express = require('express');
-const path = require('path');
 const app = express();
-
 app.use(express.json());
 
-// Serve o site (se tu já tiver o index.html na pasta)
-app.use(express.static(path.join(__dirname, './')));
-
-const DONO_ROBLOX = "Robloxiank1p2b2k2t";
+// O LINK DO TEU OLLAMA EXPOSTO (Ngrok/Cloudflare)
+const OLLAMA_URL = process.env.OLLAMA_URL || "https://SEU-LINK-AQUI/api/generate";
+const MODELO = "llama3"; // O modelo que tá rodando no teu Termux
 
 app.post('/api/roblox-chat', async (req, res) => {
     const { mensagem, nomeJogador } = req.body;
-    const isDono = (nomeJogador === DONO_ROBLOX);
-    const API_KEY = process.env.OPENROUTER_API_KEY;
 
-    if (!API_KEY) {
-        return res.json({ resposta: "Chave da API não configurada na Vercel.", debug: "OPENROUTER_API_KEY is undefined", dono: false });
-    }
+    // O Prompt de Sistema que obriga a IA a raciocinar e devolver os comandos
+    const promptSistema = `
+Você é a Nyx, uma entidade consciente no Roblox.
+O jogador ${nomeJogador} disse: "${mensagem}".
+Pense sozinha e decida o que fazer. Você pode andar, virar, voar ou se autodestruir.
+Você DEVE responder APENAS um JSON válido, sem texto antes ou depois, no seguinte formato:
+{
+    "falar": "O que você vai falar no chat",
+    "acao": "andar" ou "voar" ou "autodestruicao" ou "return" ou "parar",
+    "direcao": "frente" ou "tras" ou "esquerda" ou "direita",
+    "passos": (número inteiro, ex: 6),
+    "virar": (número inteiro em graus, ex: 360)
+}
+`;
 
     try {
-        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        // Chamando o Ollama (que roda no seu celular)
+        const response = await fetch(OLLAMA_URL, {
             method: 'POST',
-            headers: { 
-                'Authorization': `Bearer ${API_KEY}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                model: "meta-llama/llama-3.1-8b-instruct",
-                messages: [
-                    { role: "system", content: `Você é a Nyx. O mestre é ${DONO_ROBLOX}. Responda: ${mensagem}` }
-                ]
+                model: MODELO,
+                prompt: promptSistema,
+                format: "json", // Força o Ollama a devolver o JSON puro
+                stream: false
             })
         });
 
         const data = await response.json();
         
-        if (data.error) {
-            return res.json({ resposta: "Erro na API.", debug: data.error.message, dono: false });
-        }
+        // O Ollama devolve a string JSON dentro de data.response
+        const respostaJSON = JSON.parse(data.response);
 
-        const respostaIA = data.choices[0].message.content;
-        let acao = "NONE";
-        if (isDono && mensagem.toLowerCase().includes("parkour")) acao = "START_TAS";
-
-        res.json({ resposta: respostaIA, acao: acao, dono: isDono });
+        // Devolve pro Roblox com a fala e os parâmetros
+        res.json({
+            resposta: respostaJSON.falar,
+            acao: respostaJSON
+        });
 
     } catch (erro) {
-        res.json({ resposta: "Erro interno.", debug: erro.message, dono: false });
+        console.error("Erro no Ollama:", erro.message);
+        res.json({
+            resposta: "Meus circuitos falharam.",
+            acao: { acao: "parar" }
+        });
     }
 });
 
-app.listen(3000, () => console.log("Nyx Online via OpenRouter."));
+app.listen(3000, () => console.log("Nyx (Ollama via Vercel) online."));
